@@ -26,12 +26,12 @@ const promptUser = () => {
         message: 'What would you like to do?',
         choices: [
             "View All Employees",
-            "View Employees By Department",
-            "View Employees By Manager",
+            "View All Employees By Department",
+            "View All Employees By Manager",
+            "View All Employees By Role",
             "Add An Employee",
             "Remove An Employee",
-            "Update Employee's Role",
-            "View All Roles",
+            "Update An Employee's Role",
             "Add New Role",
             "Add New Department",
             "Exit"
@@ -64,8 +64,8 @@ const promptUser = () => {
         if (choices === "Add New Role") {
             addRole();
         }
-        if (choices === "Add New Dept") {
-            addDept();
+        if (choices === "Add New Department") {
+            addDepartment();
         }
         if (choices === "Exit") {
             connection.end;
@@ -207,177 +207,122 @@ const addEmployee = () => {
     });
 };
 
-// function to verify whether user knows employee's ID
 
-function removeEmployee(input) {
-    const promptQ = {
-        yes: 'Yes.',
-        no: 'No. (View All Employees on Main Menu)'
-    };
-    inquirer.prompt([
-        {
-            name: "action",
-            type: "list",
-            message: `In order to process the employee, please enter the employee's ID.  Do you have the employee's ID? (View All Employees to get)`,
-            choices: [promptQ.yes, promptQ.no]
-        }
-    ]).then(answer => {
-        if (input === 'delete' && answer.action === "yes") deleteEmployee();
-        else if (input === 'role' && answer.action === 'yes') updateRole();
-        else viewAllEmployees();
-    });
-};
-
-//function to delete an employee
-
-const deleteEmployee = () => {
-    let employees = `SELECT employee.id, employee.first_name, employee.last_name FROM employee`;
-    connection.query(employees, (err, res) => {
-        if (err) throw err;
-        let employeeArray = [];
-        response.forEach((employee) => {employeeArray.push(`${employee.first_name} ${employee.last_name}`);});
-
-        inquirer.prompt([
-            {
-                name: 'deletedEmployee',
-                type: 'list',
-                message: 'Which employee would you like to remove?',
-                choices: employeeArray
-            }
-        ]).then((answer) => {
-            let employeeId;
-            response.forEach((employee) => {
-                if (
-                    answer.deletedEmployee === `${employee.first_name} ${employee.last_name}`
-                ) {
-                    employeeId = employee.id;
-                }
-            });
-            let deleteSql = `DELETE FROM employee WHERE employee.id = ?`;
-            connection.query(deleteSql, (err) => {
-                if (err) throw err;
-                console.log("Employee has been successfully removed");
-                viewAllEmployees();
-            });
-        });
-    });
-};
-
-// function to update Employee's role
-
-const updateRole = () => {
-        connection.query(`SELECT employee.id, employee.first_name, employee.last_name, role.id AS "role_id"
-        FROM employee, role, department WHERE department.id = role.department_id AND role.id = employee.role_id`, (err, res) => {
-        if (err) throw err;
-        let employeeNames = [];
-        response.forEach((employee) => {employeeNames.push(`${employee.first_name} ${employee.last_name}`);});
-        let roleSql = `SELECT role.id, role.title FROM role`;
-        connection.query(roleSql, (err, res) => {
-            if (err) throw err;
-            let roleArray = [];
-            response.forEach((role) => {roleArray.push(role.title);});
-            inquirer.prompt([
-                {
-                    name: 'transferEmployee',
-                    type: 'list',
-                    message: "Select the employee who is transferring to a new role",
-                    choice: employeeNames
-                },
-                {
-                    name: 'newRole',
-                    type: 'list',
-                    message: "Select the employee's new role",
-                    choices: roleArray
-                }
-            ]).then((answer) => {
-                let newTitle, employeeId;
-
-                response.forEach((role) => {
-                    if (answer.newRole === role.title) {
-                        newTitle = role.id;
-                    }
-                });
-                response.forEach((employee) => {
-                    if (answer.transferEmployee === `${employee.first_name} ${employee.last_name}`) {
-                        employeeId = employee.id;
-                    }
-                });
-                let updateSql = `UPDATE employee SET employee.role_id = ? WHERE employee.id = ?`;
-                connection.query(updateSql, [newTitle, employeeId], (err) => {
-                    if (err) throw err;
-                    console.log("Success! Employee's role has been updated!");
-                    promptUser();
-                });
-            });
-        });
-    });
-}
-
-// function to add a new department and role
-const addRole = () => {
-    const deptSql = 'SELECT * FROM department'
-    connection.query(deptSql, (err, res) => {
-        if (err) throw err;
-        let deptArray = [];
-        response.forEach((department) => {deptArray.push(department.department_name);});
-        deptArray.push('New Department');
-        inquirer.prompt([
-            {
-                name: 'deptName',
-                type: 'list',
-                message: 'Which department will the new role be in?',
-                choices: deptArray
-            }
-        ]).then((answer) => {
-            if (answer.deptName === 'New Department') {
-                this.addDept();
-            } else {
-                addNewRole(answer);
-            }
-        });
-        const addNewRole = (departmentData) => {
-            inquirer.prompt ([
-                {
-                    name: 'newRole',
-                    type: 'input',
-                    message: "What is the new role you wish to add?"
-                },
-                {
-                    name: 'salary',
-                    type: 'input',
-                    message: "What will be the new role's salary?"
-                }
-            ]).then((answer) => {
-                let createRole = answer.newRole;
-                let departmentId;
-                response.forEach((department) => {
-                    if (departmentData.departmentName === department.department_name) {departmentId = department.id;}
-                });
-                let newRoleSql = `INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)`;
-                let crit = [createRole, answer.salary, departmentId];
-
-                connection.query(newRoleSql, crit, (err) => {
-                    if (err) throw err;
-                    console.log("The new role has been succesfully added!");
-                    viewAllRoles();
-                });
-            });
+const addRole = async () => {
+    const createRole = await inquirer
+    .prompt([
+    {
+        type: 'number',
+        name: 'newRoleId',
+        message: 'What is the id of the new role?'
+    },
+    {
+        type: 'input',
+        name: 'newRoleTitle',
+        message: 'What is the title of this role?'
+    },
+    {
+        type: 'number',
+        name: 'newRoleSalary',
+        message: 'What is the salary for this role?'
+    },
+    {
+        type: 'number',
+        name: 'newRoleDeptId',
+        message: 'What is the department id for this role?'
+    },
+]);
+    connection.query(`INSERT INTO role (id, title, salary, department_id)
+    VALUES (?, ?, ?, ?)`, 
+    [
+    createRole.newRoleId,
+    createRole.newRoleTitle, 
+    createRole.newRoleSalary, 
+    createRole.newRoleDeptId
+    ], 
+    (err, res) => {
+        if (err) {
+            console.log(err);
         };
-    });
-}
+        console.table(res);
+        promptUser();
+    }
 
-const addDept = () => {
-    inquirer.prompt([
-        {
-            name: 'newDept',
-            type: 'input',
-            message: 'What is the name of the new department?'
-        }
-    ]).then((answer) => {
-        let newDeptSql = `INSERT INTO department (department_name) VALUES (?)`;
-        connection.query(newDeptSql, answer.newDept, (err, res) => {
-            if (err) throw err;
-            console.log(answer.newDept + "New department has been successfully created!");
+    )
+};
+
+const addDepartment = async () => {
+    const createDepartment = await inquirer
+    .prompt([
+    {
+        type: 'number',
+        name: 'newDeptId',
+        message: 'What is the id of the new department?'
+    },
+    {
+        type: 'input',
+        name: 'newDeptName',
+        message: 'What is the name of the new department?'
+    }
+]);
+connection.query(`INSERT INTO department (id, name)
+    VALUES (?, ?)`, 
+    [
+    createDepartment.newDeptId,
+    createDepartment.newDeptName
+    ], 
+    (err, res) => {
+        if (err) {
+            console.log(err);
+        };
+        console.table(res);
+        promptUser();
+    }
+
+    )
+};
+
+// Delete an employee from the database
+const removeEmployee = async () => {
+    const deleteEmp = await inquirer
+    .prompt({
+        type: 'number',
+        name: 'deleteEmpId',
+        message: 'What is the id of the employee you wish to delete?'
+    });
+    connection.query(`DELETE FROM employee WHERE id = ?`, 
+        deleteEmp.deleteEmpId,
+        (err, res) => {
+            if (err) {
+                console.log(err);
+            }
+            console.table(res);
+            promptUser();
         });
+    };    
+
+const updateRole = async () => {
+    const roleUpdate = await inquirer
+    .prompt([
+        {
+        type: 'number',
+        name: 'empId',
+        message: 'What is the id of the employee you wish to update?'
+        },
+        {
+        type: 'number',
+        name: 'roleId',
+        message: 'What is the new role id for this employee?'
+        }
+    ]);
+    connection.query(`UPDATE employee
+    SET role_id = ?
+    Where id = ?`, [roleUpdate.roleId, roleUpdate.empId],
+    (err, res) => {
+        if (err) {
+            console.log(err);
+        }
+        console.table(res);
+        promptUser();
     });
 };
